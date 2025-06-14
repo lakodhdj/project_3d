@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 from jwt import encode
 from datetime import datetime, timedelta
 from typing import Annotated
-from app.dependencies import SECRET_KEY, ALGORITHM
+from app.dependencies import SECRET_KEY, ALGORITHM, get_current_user, redis_client
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -21,16 +21,6 @@ def verify_password(plain_password, hashed_password):
 
 def get_password_hash(password):
     return pwd_context.hash(password)
-
-def create_access_token(data: dict, expires_delta: timedelta = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
 
 async def get_user_by_username(db: AsyncSession, username: str):
     result = await db.execute(select(User).where(User.username == username))
@@ -54,7 +44,8 @@ async def register_user(
 @router.post("/token")
 async def login(
     form_data: Annotated[LoginRequest, Depends()],
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: Annotated[AsyncSession, Depends(get_db)],
+    response: Response
 ) -> dict:
     user = await get_user_by_username(db, form_data.username)
     if not user or not verify_password(form_data.password, user.hash_pass):
@@ -63,8 +54,8 @@ async def login(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username, "role": user.role.value}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+    session_payload = {"sub": user.username, "user_id": user.id, "role": user.role.value, "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)}
+    session_id = encode(session_payload, SECRET_KEY, algorithm=ALGORITHM)
+    response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=1800)  # 30 минут
+    await redis_client.setex(f"session:{session_id}", 1800, str(user.id))  # Кэшируем user_id
+    return {"message": "Login successful"}

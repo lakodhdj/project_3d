@@ -19,6 +19,14 @@ services:
     networks:
       - app-network
 
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
   web:
     build: .
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
@@ -26,6 +34,8 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:password1@db:5432/printer_queue
+      SECRET_KEY: a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef
+      REDIS_URL: redis://redis:6379
     depends_on:
       db:
         condition: service_healthy
@@ -34,6 +44,7 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   app-network:
