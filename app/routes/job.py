@@ -6,8 +6,8 @@ from app.models.job import Job
 from app.models.user import User
 from app.schemas.job import JobCreate, JobOut
 from app.dependencies import get_current_user
-from app.utils.sort_jobs import sort_jobs
 from typing import List, Annotated
+from datetime import date
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -17,14 +17,16 @@ async def create_job(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)]
 ) -> JobOut:
-    created_at = job.created_at.replace(tzinfo=None) if job.created_at.tzinfo else job.created_at
-    deadline = job.deadline.replace(tzinfo=None) if job.deadline and job.deadline.tzinfo else job.deadline
-
+    # Устанавливаем текущую дату как дату добавления
+    created_at = date.today()
+    # Создаем запись в базе
     db_job = Job(
+        user_id=current_user.id,
         printer_id=job.printer_id,
         duration=job.duration,
+        deadline=job.deadline,
         created_at=created_at,
-        deadline=deadline
+        material_amount=job.material_amount
     )
     db.add(db_job)
     await db.commit()
@@ -37,9 +39,7 @@ async def get_queue(
     db: Annotated[AsyncSession, Depends(get_db)]
 ) -> List[JobOut]:
     result = await db.execute(
-        select(Job, User).join(User).where(Job.printer_id == printer_id, Job.status == "pending")
+        select(Job).where(Job.printer_id == printer_id)
     )
-    jobs = result.all()
-    users = {job.User.id: job.User.role.value for job in jobs}
-    sorted_jobs = sort_jobs([job.Job for job in jobs], users)
-    return sorted_jobs
+    jobs = result.scalars().all()
+    return jobs

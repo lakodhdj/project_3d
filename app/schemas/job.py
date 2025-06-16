@@ -1,18 +1,17 @@
-from pydantic import BaseModel
-from datetime import datetime
+from pydantic import BaseModel, Field
+from datetime import date
+from typing import Optional
 
-class JobBase(BaseModel):
-    user_id: int
-    printer_id: int
-    duration: float  # Время выполнения в часах (или минутах, в зависимости от вашей логики)
-    deadline: datetime 
+class JobCreate(BaseModel):
+    printer_id: int = Field(..., description="ID of the printer, selected from a dropdown on the frontend")
+    duration: float = Field(..., description="Estimated duration in hours, chosen by user")
+    deadline: date = Field(..., description="Deadline date in DD.MM.YYYY format, selected via calendar")
+    material_amount: float = Field(..., description="Amount of material in units, chosen by user")
 
-class JobCreate(JobBase):
-    pass
-
-class JobOut(JobBase):
+class JobOut(JobCreate):
     id: int
-    created_at: datetime
+    user_id: int
+    created_at: date  # Скрытое поле, отображается в ответе
 
     class Config:
-        from_attributes = True
+        orm_mode = True
