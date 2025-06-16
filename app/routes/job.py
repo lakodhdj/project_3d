@@ -8,7 +8,6 @@ from app.schemas.job import JobCreate, JobOut
 from app.dependencies import get_current_user
 from app.utils.sort_jobs import sort_jobs
 from typing import List, Annotated
-from datetime import datetime
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
