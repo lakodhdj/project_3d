@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Print Queue</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div id="app">
+        <h1>3D Print Queue Management</h1>
+        <div id="loginSection" style="display: block;">
+            <h2>Login</h2>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="login()">Login</button>
+            <p>Don't have an account? <a href="#" onclick="showRegister()">Register</a></p>
+        </div>
+        <div id="registerSection" style="display: none;">
+            <h2>Register</h2>
+            <input type="text" id="regUsername" placeholder="Username">
+            <input type="password" id="regPassword" placeholder="Password">
+            <select id="regRole">
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+                <option value="lab_head">Lab Head</option>
+            </select>
+            <button onclick="register()">Register</button>
+            <p>Back to <a href="#" onclick="showLogin()">Login</a></p>
+        </div>
+        <div id="jobSection" style="display: none;">
+            <h2>Create Job</h2>
+            <select id="printerId">
+                <option value="1">Printer 1</option>
+                <option value="2">Printer 2</option>
+                <option value="3">Printer 3</option>
+            </select>
+            <input type="number" id="duration" placeholder="Duration (hours)" step="0.1">
+            <input type="date" id="deadline" placeholder="Deadline">
+            <input type="number" id="materialAmount" placeholder="Material Amount" step="0.1">
+            <button onclick="createJob()">Create Job</button>
+            <h3>Queue</h3>
+            <ul id="queueList"></ul>
+        </div>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>

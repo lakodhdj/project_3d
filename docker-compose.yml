@@ -41,6 +41,8 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    volumes:
+      - ./static:/app/static
 
 volumes:
   postgres_data:

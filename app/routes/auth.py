@@ -33,7 +33,7 @@ async def register_user(
 ) -> UserOut:
     db_user = await get_user_by_username(db, user.username)
     if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(status_code=400, detail="Пользователь с таким логином уже существует!")
     hashed_password = get_password_hash(user.password)
     db_user = User(username=user.username, hash_pass=hashed_password, role=user.role)
     db.add(db_user)
@@ -51,11 +51,11 @@ async def login(
     if not user or not verify_password(form_data.password, user.hash_pass):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Некорректный пользователь или пароль",
             headers={"WWW-Authenticate": "Bearer"},
         )
     session_payload = {"sub": user.username, "user_id": user.id, "role": user.role.value, "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)}
     session_id = encode(session_payload, SECRET_KEY, algorithm=ALGORITHM)
     response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=1800)  # 30 минут
     await redis_client.setex(f"session:{session_id}", 1800, str(user.id))  # Кэшируем user_id
-    return {"message": "Login successful"}
+    return {"message": "Успешно авторизованы!"}
