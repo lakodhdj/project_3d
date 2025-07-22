@@ -2,8 +2,8 @@ from fastapi import Depends, HTTPException, status, Request
 from jwt import PyJWTError, decode
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.database import get_db
-from app.models.user import User
+from database import get_db
+from models.user import User
 from typing import Annotated
 from dotenv import load_dotenv
 import os
@@ -35,7 +35,6 @@ async def get_current_user(request: Request, db: Annotated[AsyncSession, Depends
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
-        # Проверяем данные в Redis
         redis_key = f"session:{session_id}"
         cached_user_id = await redis_client.get(redis_key)
         if cached_user_id:
@@ -43,8 +42,7 @@ async def get_current_user(request: Request, db: Annotated[AsyncSession, Depends
             user = result.scalar_one_or_none()
             if user and user.username == username:
                 return user
-        
-        # Если нет в кэше, проверяем в базе
+
         result = await db.execute(select(User).where(User.username == username))
         user = result.scalar_one_or_none()
         if user:

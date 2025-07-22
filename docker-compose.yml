@@ -27,9 +27,10 @@ services:
       - redis_data:/data
     networks:
       - app-network
+
   web:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
     environment:
@@ -42,6 +43,7 @@ services:
     networks:
       - app-network
     volumes:
+      - ./app:/app
       - ./static:/app/static
 
 volumes:

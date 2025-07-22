@@ -1,6 +1,6 @@
 # Импорт базового класса. Pydantic нужен для валидации данных и преобразования в Python-объекты
 from pydantic import BaseModel
-from app.models.user import UserRole
+from models.user import UserRole
 
 
 # Базовая схема

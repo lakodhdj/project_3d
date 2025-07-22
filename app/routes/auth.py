@@ -1,16 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.database import get_db
-from app.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserOut, LoginRequest
+from database import get_db
+from models.user import User, UserRole
+from schemas.user import UserCreate, UserOut, LoginRequest
 from passlib.context import CryptContext
 from jwt import encode
 from datetime import datetime, timedelta
 from typing import Annotated
-from app.dependencies import SECRET_KEY, ALGORITHM, get_current_user, redis_client
+from dependencies import SECRET_KEY, ALGORITHM, get_current_user, redis_client
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/users/auth", tags=["auth"])
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -41,7 +41,7 @@ async def register_user(
     await db.refresh(db_user)
     return db_user
 
-@router.post("/token")
+@router.post("/login")
 async def login(
     form_data: Annotated[LoginRequest, Depends()],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -56,6 +56,6 @@ async def login(
         )
     session_payload = {"sub": user.username, "user_id": user.id, "role": user.role.value, "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)}
     session_id = encode(session_payload, SECRET_KEY, algorithm=ALGORITHM)
-    response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=1800)  # 30 минут
-    await redis_client.setex(f"session:{session_id}", 1800, str(user.id))  # Кэшируем user_id
+    response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=1800) 
+    await redis_client.setex(f"session:{session_id}", 1800, str(user.id))  
     return {"message": "Успешно авторизованы!"}
