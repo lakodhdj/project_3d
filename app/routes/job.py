@@ -16,7 +16,7 @@ async def create_job(job: JobCreate,
                      db: Annotated[AsyncSession, Depends(get_db)], 
                      current_user: Annotated[User, Depends(get_current_user)]) -> JobOut:
     priority_dct = {"глава лаборатории": 1, "учитель": 2, "студент": 3}
-    priority = priority_dct.get(current_user.role, 3)
+    priority = priority_dct.get(current_user.role.value)
 
     from datetime import datetime
 
@@ -49,7 +49,6 @@ async def create_job(job: JobCreate,
         deadline=deadline,
         created_at=datetime.utcnow(),
         material_amount=job.material_amount,
-        lead_time = job.lead_time ,
         priority=priority
     )
 
@@ -60,13 +59,55 @@ async def create_job(job: JobCreate,
     
 
 
-@router.get("/queue/{printer_id}", response_model=List[JobOut])
+@router.get("/queue/{printer_id}", response_model=List[JobOut], summary="Получить график заявок для принтера")
 async def get_queue(
     printer_id: int,
     db: Annotated[AsyncSession, Depends(get_db)]
 ) -> List[JobOut]:
+    """
+    Возвращает график заявок для указанного принтера, отсортированных по дате дедлайна и приоритету.
+    Включает проверку, что общее время заявок за день не превышает рабочий день (с 8:00 до 21:00).
+    Подсчитывает общее количество материала для каждой даты.
+    """
+
+    WORKING_HOURS_START = 8
+    WORKING_HOURS_END = 21
+    WORKING_HOURS_PER_DAY = WORKING_HOURS_END - WORKING_HOURS_START
+
     result = await db.execute(
-        select(Job).where(Job.printer_id == printer_id)
+        select(Job)
+        .where(Job.printer_id == printer_id)
+        .order_by(Job.deadline, Job.priority)
     )
     jobs = result.scalars().all()
-    return jobs
+
+    if not jobs:
+        return []
+
+    jobs_by_date = {}
+    for job in jobs:
+        deadline_date = job.deadline
+        if deadline_date not in jobs_by_date:
+            jobs_by_date[deadline_date] = {
+                'jobs': [],
+                'total_material': 0,
+                'total_duration': 0
+            }
+        jobs_by_date[deadline_date]['jobs'].append(job)
+        jobs_by_date[deadline_date]['total_material'] += job.material_amount
+        jobs_by_date[deadline_date]['total_duration'] += job.duration
+
+    for deadline_date, data in jobs_by_date.items():
+        total_duration = data['total_duration']
+        if total_duration > WORKING_HOURS_PER_DAY:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Суммарное время заявок ({total_duration} часов) на {deadline_date} для принтера {printer_id} превышает рабочий день ({WORKING_HOURS_PER_DAY} часов)"
+            )
+
+
+    sorted_jobs = []
+    for deadline_date in sorted(jobs_by_date.keys()):
+        sorted_jobs.extend(jobs_by_date[deadline_date]['jobs'])
+
+    return sorted_jobs
